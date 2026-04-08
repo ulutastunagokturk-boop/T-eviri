@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gök-Şive AI | Göktürkçe Çeviri</title>
+    <style>
+        :root {
+            --gold: #d4af37;
+            --stone: #2c2c2c;
+        }
+        body {
+            background-color: #121212;
+            color: var(--gold);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: var(--stone);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+            border: 1px solid var(--gold);
+        }
+        h1 { text-shadow: 2px 2px 4px #000; margin-bottom: 10px; }
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #1a1a1a;
+            color: white;
+            border: 1px solid var(--gold);
+            padding: 10px;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            resize: none;
+            box-sizing: border-box;
+        }
+        button {
+            background: var(--gold);
+            color: black;
+            border: none;
+            padding: 12px 25px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+        button:hover { background: #b8962d; transform: scale(1.05); }
+        #output {
+            margin-top: 30px;
+            padding: 20px;
+            background: #000;
+            border-radius: 10px;
+            font-size: 2.5rem;
+            min-height: 80px;
+            word-wrap: break-word;
+            direction: rtl; /* Göktürkçe sağdan sola yazılır */
+            line-height: 1.5;
+        }
+        .ai-info {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>𐱅𐰇𐰼𐰰 | Gök-Şive AI</h1>
+        <p>Şiveli veya standart Türkçe yazın, AI destekli Göktürkçe'ye çevirelim.</p>
+        
+        <textarea id="userInput" placeholder="Örn: Baña bak veya Geliyorum..."></textarea>
+        <button onclick="cevir()">TAMGALARA DÖK</button>
+
+        <div id="output"></div>
+        <div id="aiSuggestion" class="ai-info"></div>
+    </div>
+
+    <script>
+        // API Ayarları
+        const HF_TOKEN = "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";
+        const MODEL_ID = "ytu-ce-cosmos/turkish-gpt2-medium";
+
+        // Genişletilmiş Alfabe Sözlüğü (Şiveler Dahil)
+        const alfabe = {
+            "b": { k: "𐰉", i: "𐰋" },
+            "d": { k: "𐰑", i: "𐰓" },
+            "g": { k: "𐰍", i: "𐰗" },
+            "k": { k: "𐰴", i: "𐰚" },
+            "l": { k: "𐰞", i: "𐰜" },
+            "n": { k: "𐰣", i: "𐰤" },
+            "r": { k: "𐰺", i: "𐰼" },
+            "s": { k: "𐰽", i: "𐰾" },
+            "t": { k: "𐱃", i: "𐱅" },
+            "y": { k: "𐰖", i: "𐰘" },
+            "m": "𐰢", "ç": "𐰲", "ş": "𐱁", "z": "𐰱", "p": "𐰧",
+            "ñ": "𐰬", "ng": "𐰭",
+            "a": "𐰀", "e": "𐰀", "ı": "𐰃", "i": "𐰃",
+            "o": "𐰆", "u": "𐰆", "ö": "𐰇", "ü": "𐰇"
+        };
+
+        async function cevir() {
+            let input = document.getElementById("userInput").value.toLowerCase();
+            const outputDiv = document.getElementById("output");
+            const aiDiv = document.getElementById("aiSuggestion");
+
+            outputDiv.innerText = "İşleniyor...";
+
+            // 1. Hugging Face AI Analizi (Opsiyonel Tamamlama)
+            try {
+                const response = await fetch(`https://api-inference.huggingface.co/models/${MODEL_ID}`, {
+                    headers: { Authorization: `Bearer ${HF_TOKEN}` },
+                    method: "POST",
+                    body: JSON.stringify({ inputs: input, parameters: { max_new_tokens: 5 } }),
+                });
+                const aiData = await response.json();
+                if(aiData[0]) aiDiv.innerText = "AI Önerisi: " + aiData[0].generated_text;
+            } catch (e) {
+                aiDiv.innerText = "AI şu an meşgul, doğrudan çeviri yapılıyor.";
+            }
+
+            // 2. Şive ve Özel Ses Ön-İşleme
+            input = input.replace(/ng/g, "ñ").replace(/ñ/g, "ñ");
+
+            // 3. Kalın/İnce Uyumu ve Çeviri Mantığı
+            let sonuc = "";
+            let kelimeler = input.split(" ");
+
+            for (let kelime of kelimeler) {
+                let kalinMi = /[aıou]/.test(kelime);
+                for (let harf of kelime) {
+                    if (alfabe[harf]) {
+                        if (typeof alfabe[harf] === 'object') {
+                            sonuc += kalinMi ? alfabe[harf].k : alfabe[harf].i;
+                        } else {
+                            sonuc += alfabe[harf];
+                        }
+                    } else {
+                        sonuc += harf; // Bilinmeyen karakter
+                    }
+                }
+                sonuc += " "; // Kelime arası boşluk
+            }
+
+            outputDiv.innerText = sonuc;
+        }
+    </script>
+</body>
+</html>
